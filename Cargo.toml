@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 glium = "0.31.0"
 glam = "0.20.5"
+tobj = "3.2.2"
 
 [[bin]]
 name = "triangle"
@@ -16,3 +17,7 @@ path = "src/triangle.rs"
 [[bin]]
 name = "cube"
 path = "src/cube.rs"
+
+[[bin]]
+name = "model-display"
+path = "src/model-display.rs"

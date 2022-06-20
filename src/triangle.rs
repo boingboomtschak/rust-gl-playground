@@ -19,7 +19,7 @@ fn main() {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_title("Triangle")
-        .with_inner_size(glutin::dpi::LogicalSize::new(800f32, 800f32));
+        .with_inner_size(glutin::dpi::LogicalSize::new(600f32, 600f32));
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &event_loop)
         .expect("Error creating display");
@@ -62,8 +62,7 @@ fn main() {
         target.clear_color(0.0, 0.0, 0.0, 1.0);
         target.draw(&vertex_buffer, &index_buffer, &program, &glium::uniforms::EmptyUniforms, &Default::default())
             .expect("Error drawing triangle");
-        target.finish()
-            .expect("Error finishing draw");
+        target.finish().expect("Error finishing draw");
     };
 
     // Keeping track of key states

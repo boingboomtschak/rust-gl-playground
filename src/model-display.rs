@@ -12,71 +12,72 @@ use glam::{Mat4, Vec3};
 struct Vertex {
     position : [f32; 3],
     normal : [f32; 3],
-    color : [f32; 3],
+    texcoord : [f32; 2]
 }
-glium::implement_vertex!(Vertex, position, normal, color);
+glium::implement_vertex!(Vertex, position, normal, texcoord);
+
+struct Mesh {
+    vertex_buffer : glium::VertexBuffer<Vertex>,
+    index_buffer : glium::IndexBuffer<u32>
+}
+impl Mesh {
+    fn new(display : &glium::Display, mesh : &tobj::Mesh) -> Mesh {
+        let mut vertices = Vec::new();
+        for i in 0..(mesh.positions.len() / 3) {
+            let pos : [f32; 3] = mesh.positions[(i*3)..(i*3)+3].try_into().unwrap();
+            let norm : [f32; 3] = mesh.normals[(i*3)..(i*3)+3].try_into().unwrap();
+            let uv : [f32; 2] = mesh.texcoords[(i*2)..(i*2)+2].try_into().unwrap();
+            vertices.push(Vertex { position : pos, normal : norm, texcoord : uv });
+        }
+        let v_buf = glium::VertexBuffer::new(display, &vertices)
+            .expect("Error creating vertex buffer for mesh");
+        let i_buf = glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, &mesh.indices)
+            .expect("Error creating index buffer for mesh");
+        Mesh { vertex_buffer : v_buf, index_buffer : i_buf }
+    }
+    fn create_meshes(display : &glium::Display, filename : &str) -> Vec<Mesh> {
+        let (mdls, _mtls) = tobj::load_obj(filename, &tobj::GPU_LOAD_OPTIONS)
+            .expect("Error loading obj file");
+        let mut meshes = Vec::new();
+        for mdl in mdls {
+            meshes.push(Mesh::new(display, &mdl.mesh));
+        }
+        meshes
+    }
+}
 
 fn main() {
+    // Preamble
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
-        .with_title("Cube")
+        .with_title("Model Display")
         .with_inner_size(glutin::dpi::LogicalSize::new(600f32, 600f32));
     let context_builder = glutin::ContextBuilder::new()
         .with_depth_buffer(24);
     let display = glium::Display::new(window_builder, context_builder, &event_loop)
         .expect("Error creating display");
-    
-    let vertex_buffer = glium::VertexBuffer::new(&display, &[
-        Vertex { position : [-1.0, -1.0,  1.0], normal : [ 0.0,  0.0,  1.0], color : [1.0, 0.0, 0.0] },
-        Vertex { position : [ 1.0, -1.0,  1.0], normal : [ 0.0,  0.0,  1.0], color : [1.0, 0.0, 0.0] },
-        Vertex { position : [ 1.0,  1.0,  1.0], normal : [ 0.0,  0.0,  1.0], color : [1.0, 0.0, 0.0] },
-        Vertex { position : [-1.0,  1.0,  1.0], normal : [ 0.0,  0.0,  1.0], color : [1.0, 0.0, 0.0] },
-        Vertex { position : [-1.0, -1.0, -1.0], normal : [ 0.0,  0.0, -1.0], color : [0.0, 1.0, 0.0] },
-        Vertex { position : [ 1.0, -1.0, -1.0], normal : [ 0.0,  0.0, -1.0], color : [0.0, 1.0, 0.0] },
-        Vertex { position : [ 1.0,  1.0, -1.0], normal : [ 0.0,  0.0, -1.0], color : [0.0, 1.0, 0.0] },
-        Vertex { position : [-1.0,  1.0, -1.0], normal : [ 0.0,  0.0, -1.0], color : [0.0, 1.0, 0.0] },
-        Vertex { position : [-1.0, -1.0,  1.0], normal : [-1.0,  0.0,  0.0], color : [0.0, 0.0, 1.0] },
-        Vertex { position : [-1.0, -1.0, -1.0], normal : [-1.0,  0.0,  0.0], color : [0.0, 0.0, 1.0] },
-        Vertex { position : [-1.0,  1.0, -1.0], normal : [-1.0,  0.0,  0.0], color : [0.0, 0.0, 1.0] },
-        Vertex { position : [-1.0,  1.0,  1.0], normal : [-1.0,  0.0,  0.0], color : [0.0, 0.0, 1.0] },
-        Vertex { position : [ 1.0, -1.0,  1.0], normal : [ 1.0,  0.0,  0.0], color : [1.0, 1.0, 0.0] },
-        Vertex { position : [ 1.0, -1.0, -1.0], normal : [ 1.0,  0.0,  0.0], color : [1.0, 1.0, 0.0] },
-        Vertex { position : [ 1.0,  1.0, -1.0], normal : [ 1.0,  0.0,  0.0], color : [1.0, 1.0, 0.0] },
-        Vertex { position : [ 1.0,  1.0,  1.0], normal : [ 1.0,  0.0,  0.0], color : [1.0, 1.0, 0.0] },
-        Vertex { position : [-1.0,  1.0,  1.0], normal : [ 0.0,  1.0,  0.0], color : [0.0, 1.0, 1.0] },
-        Vertex { position : [ 1.0,  1.0,  1.0], normal : [ 0.0,  1.0,  0.0], color : [0.0, 1.0, 1.0] },
-        Vertex { position : [ 1.0,  1.0, -1.0], normal : [ 0.0,  1.0,  0.0], color : [0.0, 1.0, 1.0] },
-        Vertex { position : [-1.0,  1.0, -1.0], normal : [ 0.0,  1.0,  0.0], color : [0.0, 1.0, 1.0] },
-        Vertex { position : [-1.0, -1.0,  1.0], normal : [ 0.0, -1.0,  0.0], color : [1.0, 0.0, 1.0] },
-        Vertex { position : [ 1.0, -1.0,  1.0], normal : [ 0.0, -1.0,  0.0], color : [1.0, 0.0, 1.0] },
-        Vertex { position : [ 1.0, -1.0, -1.0], normal : [ 0.0, -1.0,  0.0], color : [1.0, 0.0, 1.0] },
-        Vertex { position : [-1.0, -1.0, -1.0], normal : [ 0.0, -1.0,  0.0], color : [1.0, 0.0, 1.0] }
-    ]).expect("Error creating vertex buffer");
 
-    let index_buffer = glium::IndexBuffer::new(&display, PrimitiveType::TrianglesList, &[
-        0u16, 1, 2, 2, 3, 0u16, // front
-        6, 5, 4, 4, 7, 6, // back
-        10, 9, 8, 8, 11, 10, // left
-        12, 13, 14, 14, 15, 12, // right
-        18, 17, 16, 16, 19, 18, // top
-        22, 21, 20, 20, 23, 22 // bottom
-    ]).expect("Error creating index buffer");
+    // Load obj, create meshes
+    let obj_filename = std::env::args()
+        .skip(1)
+        .next()
+        .expect("Path to obj file is required as first arg");
+    let meshes = Mesh::create_meshes(&display, &obj_filename);
 
+    // Creating display program
     let vert_src = r#"
         #version 140
         in vec3 position;
         in vec3 normal;
-        in vec3 color;
+        in vec3 _texcoord; // haven't set up textures yet
         out vec3 vPosition;
         out vec3 vNormal;
-        out vec3 vColor;
         uniform mat4 model;
         uniform mat4 view;
         uniform mat4 persp;
         void main() {
             vPosition = (view * model * vec4(position, 1)).xyz;
             vNormal = (view * model * vec4(normal, 0)).xyz;
-            vColor = color;
             gl_Position = persp * vec4(vPosition, 1);
         }
     "#;
@@ -85,7 +86,6 @@ fn main() {
         #version 140
         in vec3 vPosition;
         in vec3 vNormal;
-        in vec3 vColor;
         out vec4 color;
         uniform vec3 light = vec3(-3.0, 1.0, -2.0);
         uniform float amb = 0.4;
@@ -100,13 +100,12 @@ fn main() {
             float h = max(0, dot(R, E));
             float s = spc*pow(h, 100);
             float intensity = clamp(amb+d+s, 0, 1);
-            color = vec4(intensity * vColor, 1);
+            color = vec4(intensity * vec3(1.0, 0.0, 0.0), 1); // COLOR SET TO RED UNTIL TEXTURES SETUP
         }
     "#;
     let program = glium::Program::from_source(&display, vert_src, frag_src, None)
         .expect("Error creating shader program");
-
-
+    
     // Keeping track of key states
     let mut now_keys = [false; 255];
     let mut prev_keys = now_keys.clone();
@@ -166,9 +165,11 @@ fn main() {
             .. Default::default()
         };
         let mut target = display.draw();
-        target.clear_color_and_depth((0.0, 0.0, 0.0, 0.2), 1.0);
-        target.draw(&vertex_buffer, &index_buffer, &program, &uniforms, &draw_params)
-            .expect("Error drawing cube");
+        target.clear_color_and_depth((0.2, 0.2, 0.2, 1.0), 1.0);
+        for mesh in meshes.iter() {
+            target.draw(&mesh.vertex_buffer, &mesh.index_buffer, &program, &uniforms, &draw_params)
+                .expect("Error drawing mesh");
+        }
         target.finish().expect("Error finishing draw");
     });
 }
