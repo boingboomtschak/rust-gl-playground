@@ -100,7 +100,7 @@ fn main() {
         acc += elapsed;
         prev_t = std::time::Instant::now();
         while acc >= SIM_DT {
-            if now_keys[VirtualKeyCode::Q as usize] { *control_flow = ControlFlow::Exit; }
+            if now_keys[VirtualKeyCode::Q as usize] && !prev_keys[VirtualKeyCode::Q as usize] { *control_flow = ControlFlow::Exit; }
             prev_keys.copy_from_slice(&now_keys);
             acc -= SIM_DT;
         }

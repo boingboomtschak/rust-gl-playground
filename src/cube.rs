@@ -20,8 +20,7 @@ fn main() {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_title("Cube")
-        .with_inner_size(glutin::dpi::LogicalSize::new(600_f32, 600_f32))
-        .with_transparent(true);
+        .with_inner_size(glutin::dpi::LogicalSize::new(600_f32, 600_f32));
     let context_builder = glutin::ContextBuilder::new().with_depth_buffer(24);
     let display = glium::Display::new(window_builder, context_builder, &event_loop)
         .expect("Error creating display");
@@ -146,7 +145,7 @@ fn main() {
         acc += elapsed;
         prev_t = std::time::Instant::now();
         while acc >= SIM_DT {
-            if now_keys[VirtualKeyCode::Q as usize] { *control_flow = ControlFlow::Exit; }
+            if now_keys[VirtualKeyCode::Q as usize] && !prev_keys[VirtualKeyCode::Q as usize] { *control_flow = ControlFlow::Exit; }
             prev_keys.copy_from_slice(&now_keys);
             acc -= SIM_DT;
         }
