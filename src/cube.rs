@@ -117,8 +117,7 @@ fn main() {
 
     let start_t = std::time::Instant::now();
     
-    let persp = Mat4::perspective_rh_gl(45.0, 1.0, 0.1, 10.0);
-    let view = Mat4::look_at_rh(Vec3::new(-4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
+    
 
     event_loop.run(move |event, _, control_flow| {
         // Updating control flow / other state according to events
@@ -149,10 +148,11 @@ fn main() {
             prev_keys.copy_from_slice(&now_keys);
             acc -= SIM_DT;
         }
-        let model = Mat4::from_euler(glam::EulerRot::YZX, 
-            start_t.elapsed().as_secs_f32() * 1.5, 
-            start_t.elapsed().as_secs_f32() * 0.75,
-            0.0);
+        let t = start_t.elapsed().as_secs_f32();
+        let (w, h) = display.get_framebuffer_dimensions();
+        let persp = Mat4::perspective_rh_gl(45.0, (w as f32) / (h as f32), 0.1, 10.0);
+        let view = Mat4::look_at_rh(Vec3::new(-4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
+        let model = Mat4::from_euler(glam::EulerRot::YZX, t * 1.5, t * 0.75, 0.0);
         let uniforms = uniform!{ 
             persp : persp.to_cols_array_2d(), 
             view : view.to_cols_array_2d(), 
