@@ -88,9 +88,9 @@ fn main() {
         in vec3 vNormal;
         out vec4 color;
         uniform vec3 light = vec3(-3.0, 1.0, -2.0);
-        uniform float amb = 0.4;
-        uniform float dif = 0.4;
-        uniform float spc = 0.4;
+        uniform float amb = 0.1;
+        uniform float dif = 0.5;
+        uniform float spc = 0.7;
         void main() {
             vec3 N = normalize(vNormal);
             vec3 L = normalize(light - vPosition);
@@ -98,7 +98,7 @@ fn main() {
             vec3 R = reflect(L, N);
             float d = dif*max(0, dot(N, L));
             float h = max(0, dot(R, E));
-            float s = spc*pow(h, 100);
+            float s = spc*pow(h, 50);
             float intensity = clamp(amb+d+s, 0, 1);
             color = vec4(intensity * vec3(1.0, 0.0, 0.0), 1); // COLOR SET TO RED UNTIL TEXTURES SETUP
         }
