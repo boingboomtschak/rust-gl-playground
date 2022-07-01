@@ -12,6 +12,7 @@ use imgui_glium_renderer::{Renderer, Texture};
 use imgui_winit_support::{WinitPlatform, HiDpiMode};
 use std::time::Instant;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 fn show_main_menu_bar(ui : &Ui) -> bool {
     let mut close = false;
@@ -53,7 +54,7 @@ fn show_layers(opened : &mut bool, ui : &Ui) {
     }
 }
 
-fn show_render(opened : &mut bool, ui : &Ui, tex : TextureId) {
+fn show_render(opened: &mut bool, ui: &Ui, tex: TextureId) {
     if *opened {
         Window::new("Render").opened(opened).build(ui, || {
             Image::new(tex, [512.0, 512.0]).build(ui);
@@ -61,7 +62,7 @@ fn show_render(opened : &mut bool, ui : &Ui, tex : TextureId) {
     }
 }
 
-fn show_layer_inspector(opened : &mut bool, ui : &Ui) {
+fn show_layer_inspector(opened: &mut bool, ui: &Ui) {
     if *opened {
         Window::new("Layers").opened(opened).build(ui, || {
             ChildWindow::new("test1").build(ui, || {
@@ -81,20 +82,20 @@ fn main() {
         .with_title("vsynth")
         .with_inner_size(LogicalSize::new(1000f32, 800f32));
     let cb = ContextBuilder::new().with_vsync(true);
-    let display = Display::new(wb, cb, &event_loop).expect("Failed to initialize display");
+    let display = Rc::new(Display::new(wb, cb, &event_loop).expect("Failed to initialize display"));
 
     // Create imgui context, platform renderer, and attach platform to window
     let mut imgui = Context::create();
     imgui.set_ini_filename(None);
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(imgui.io_mut(), display.gl_window().window(), HiDpiMode::Default);
-    let mut renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
+    let mut renderer = Rc::new(RefCell::new(Renderer::init(&mut imgui, display.as_ref()).expect("Failed to initialize renderer")));
 
     let mut render_data = vec![0u8; 256];
     for i in (3..256).step_by(4) { render_data[i] = 255u8; }
     let render_tex = RawImage2d::from_raw_rgba(render_data, (8, 8));
-    let render_tex = Texture2d::new(&display, render_tex).expect("Failed to create render texture");
-    let render_tex = renderer.textures().insert(Texture {
+    let render_tex = Texture2d::new(display.as_ref(), render_tex).expect("Failed to create render texture");
+    let render_tex = renderer.borrow_mut().textures().insert(Texture {
         texture : Rc::new(render_tex),
         sampler : Default::default()
     });
@@ -138,7 +139,7 @@ fn main() {
                 // ImGui preparation
                 platform.prepare_render(&ui, gl_window.window());
                 let draw_data = ui.render();
-                renderer.render(&mut target, draw_data).expect("Failed to render UI");
+                renderer.borrow_mut().render(&mut target, draw_data).expect("Failed to render UI");
 
                 target.finish().expect("Failed to finish render");
             }
@@ -151,52 +152,72 @@ fn main() {
     });
 }
 
-struct SynthesisLayer {
-    texture_id : TextureId
-}
-struct ControlLayer {
-    texture_id : TextureId
-}
-struct SourceLayer {
-    texture_id : TextureId
-}
-
-fn create_texture(mut rndr : Renderer, disp : &Display, size : (u32, u32)) -> TextureId {
+fn create_texture(renderer: Rc<RefCell<Renderer>>, display: Rc<Display>, size: (u32, u32)) -> TextureId {
     let tex_size = size.0 * size.1 * 4;
     let mut tex_data = vec![0u8; tex_size as usize];
     for i in (3..tex_size).step_by(4) { tex_data[i as usize] = 255u8 };
     let tex = RawImage2d::from_raw_rgba(tex_data, size);
-    let tex = Texture2d::new(disp, tex).expect("Failed to create layer texture");
-    rndr.textures().insert(Texture {
+    let tex = Texture2d::new(display.as_ref(), tex).expect("Failed to create layer texture");
+    renderer.borrow_mut().textures().insert(Texture {
         texture : Rc::new(tex),
         sampler : Default::default()
     })
 }
 
+struct SynthesisLayer {
+    texture_id: TextureId
+}
+struct ControlLayer {
+    texture_id: TextureId
+}
+struct SourceLayer {
+    texture_id: TextureId
+}
+
+trait Layer {
+    //fn new(renderer: Rc<RefCell<Renderer>>, display: Rc<Display>, size: (u32, u32)) -> Box<Self>;
+    //fn draw(&self, ui: &Ui);
+}
 impl SynthesisLayer {
-    fn new(rndr : Renderer, disp : &Display, size : (u32, u32)) -> SynthesisLayer {
-        let tex_id = create_texture(rndr, disp, size);
+    fn new(renderer: Rc<RefCell<Renderer>>, display: Rc<Display>, size: (u32, u32)) -> SynthesisLayer {
+        let tex_id = create_texture(renderer, display, size);
         SynthesisLayer { texture_id : tex_id }
     }
 }
 impl ControlLayer {
-    fn new(rndr : Renderer, disp : &Display, size : (u32, u32)) -> ControlLayer {
-        let texture_id = create_texture(rndr, disp, size);
+    fn new(renderer: Rc<RefCell<Renderer>>, display: Rc<Display>, size: (u32, u32)) -> ControlLayer {
+        let texture_id = create_texture(renderer, display, size);
         ControlLayer { texture_id : texture_id }
     }
 }
 impl SourceLayer {
-    fn new(rndr : Renderer, disp : &Display, size : (u32, u32)) -> SourceLayer {
-        let texture_id = create_texture(rndr, disp, size);
+    fn new(renderer: Rc<RefCell<Renderer>>, display: Rc<Display>, size: (u32, u32)) -> SourceLayer {
+        let texture_id = create_texture(renderer, display, size);
         SourceLayer { texture_id : texture_id }
     }
 }
 
-trait Layer {
-    fn draw(&self, ui : &Ui);
-}
-// impl Layer for $t...
-
 struct Compositor {
-    layers : Vec<Box<dyn Layer>>
+    texture_id: TextureId,
+    texture_size: [f32; 2],
+    renderer: Rc<RefCell<Renderer>>,
+    display: Rc<Display>,
+    layers: Vec<Box<dyn Layer>>
+}
+impl Compositor {
+    fn new(renderer: Rc<RefCell<Renderer>>, display: Rc<Display>, size: (u32, u32)) -> Compositor {
+        let texture_id = create_texture(renderer.clone(), display.clone(), size);
+        Compositor {
+            texture_id: texture_id,
+            texture_size: [size.0 as f32, size.1 as f32],
+            renderer: renderer,
+            display: display,
+            layers: Vec::new()
+        }
+    }
+    fn create_layer<L: Layer>(&self) {
+        //L::new(self.renderer, self.display, (self.texture_size[0] as u32, self.texture_size[1] as u32));
+    } // TODO
+    fn delete_layer(i: usize) {} // TODO
+    fn image(&self) -> Image { Image::new(self.texture_id, self.texture_size) }
 }
