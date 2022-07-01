@@ -1,5 +1,5 @@
 use glium::{
-    Surface, Display, GlObject,
+    Surface, Display,
     texture::{RawImage2d, Texture2d},
     glutin::window::WindowBuilder,
     glutin::ContextBuilder,
@@ -7,7 +7,7 @@ use glium::{
     glutin::event::{Event, WindowEvent},
     glutin::dpi::LogicalSize,
 };
-use imgui::{Context, Window, Ui, ListBox, Selectable, Image, TextureId, MenuItem};
+use imgui::{Context, Window, Ui, ListBox, Selectable, Image, TextureId, MenuItem, ChildWindow};
 use imgui_glium_renderer::{Renderer, Texture};
 use imgui_winit_support::{WinitPlatform, HiDpiMode};
 use std::time::Instant;
@@ -38,13 +38,17 @@ fn show_layers(opened : &mut bool, ui : &Ui) {
         Window::new("Layers")
             .opened(opened)
             .scroll_bar(false)
-            .always_auto_resize(true)
             .build(ui, || {
-                ListBox::new("").build(ui, || {
-                    for i in 0..64 {
-                        Selectable::new(format!("Synthesis - ADD - {}", i)).build(ui);
-                    }
+                ChildWindow::new("Active Layers").build(ui, || {
+                    ListBox::new("").build(ui, || {
+                        for i in 0..64 {
+                            Selectable::new(format!("Synthesis - ADD - {}", i)).build(ui);
+                        }
+                    });
                 });
+                ChildWindow::new("Layer Inspector").build(ui, || {
+                    ui.text("Layer inspector text, lorem ipsum");
+                })
             });
     }
 }
@@ -59,8 +63,13 @@ fn show_render(opened : &mut bool, ui : &Ui, tex : TextureId) {
 
 fn show_layer_inspector(opened : &mut bool, ui : &Ui) {
     if *opened {
-        Window::new("Layer Inspector").opened(opened).build(ui, || {
-
+        Window::new("Layers").opened(opened).build(ui, || {
+            ChildWindow::new("test1").build(ui, || {
+                
+            });
+            ChildWindow::new("test2").build(ui, || {
+                
+            });
         });
     }
 }
@@ -81,15 +90,8 @@ fn main() {
     platform.attach_window(imgui.io_mut(), display.gl_window().window(), HiDpiMode::Default);
     let mut renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
-    let mut render_data = Vec::with_capacity(64 * 4);
-    for i in 0..8 {
-        for j in 0..8 {
-            render_data.push(i * 32 as u8);
-            render_data.push(j * 32 as u8);
-            render_data.push((i + j) * 16 as u8);
-            render_data.push(255 as u8);
-        }
-    }
+    let mut render_data = vec![0u8; 256];
+    for i in (3..256).step_by(4) { render_data[i] = 255u8; }
     let render_tex = RawImage2d::from_raw_rgba(render_data, (8, 8));
     let render_tex = Texture2d::new(&display, render_tex).expect("Failed to create render texture");
     let render_tex = renderer.textures().insert(Texture {
@@ -122,7 +124,7 @@ fn main() {
                 let ui = imgui.frame();
                 let gl_window = display.gl_window();
 
-                //ui.show_demo_window(&mut true);
+                ui.show_demo_window(&mut true);
 
                 if show_main_menu_bar(&ui) { *control_flow = ControlFlow::Exit; }
                 show_layers(&mut layers_open, &ui);
@@ -147,4 +149,54 @@ fn main() {
             }
         }
     });
+}
+
+struct SynthesisLayer {
+    texture_id : TextureId
+}
+struct ControlLayer {
+    texture_id : TextureId
+}
+struct SourceLayer {
+    texture_id : TextureId
+}
+
+fn create_texture(mut rndr : Renderer, disp : &Display, size : (u32, u32)) -> TextureId {
+    let tex_size = size.0 * size.1 * 4;
+    let mut tex_data = vec![0u8; tex_size as usize];
+    for i in (3..tex_size).step_by(4) { tex_data[i as usize] = 255u8 };
+    let tex = RawImage2d::from_raw_rgba(tex_data, size);
+    let tex = Texture2d::new(disp, tex).expect("Failed to create layer texture");
+    rndr.textures().insert(Texture {
+        texture : Rc::new(tex),
+        sampler : Default::default()
+    })
+}
+
+impl SynthesisLayer {
+    fn new(rndr : Renderer, disp : &Display, size : (u32, u32)) -> SynthesisLayer {
+        let tex_id = create_texture(rndr, disp, size);
+        SynthesisLayer { texture_id : tex_id }
+    }
+}
+impl ControlLayer {
+    fn new(rndr : Renderer, disp : &Display, size : (u32, u32)) -> ControlLayer {
+        let texture_id = create_texture(rndr, disp, size);
+        ControlLayer { texture_id : texture_id }
+    }
+}
+impl SourceLayer {
+    fn new(rndr : Renderer, disp : &Display, size : (u32, u32)) -> SourceLayer {
+        let texture_id = create_texture(rndr, disp, size);
+        SourceLayer { texture_id : texture_id }
+    }
+}
+
+trait Layer {
+    fn draw(&self, ui : &Ui);
+}
+// impl Layer for $t...
+
+struct Compositor {
+    layers : Vec<Box<dyn Layer>>
 }
