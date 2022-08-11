@@ -12,6 +12,7 @@ tobj = "3.2.2"
 imgui = "0.8.2"
 imgui-glium-renderer = "0.8.2"
 imgui-winit-support = "0.8.2"
+rand = "0.8.5"
 
 [[bin]]
 name = "triangle"
@@ -28,3 +29,7 @@ path = "src/model-display.rs"
 [[bin]]
 name = "vsynth"
 path = "src/vsynth.rs"
+
+[[bin]]
+name = "falling-sand"
+path = "src/falling-sand.rs"

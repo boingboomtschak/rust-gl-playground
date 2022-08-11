@@ -69,7 +69,7 @@ fn main() {
         #version 140
         in vec3 position;
         in vec3 normal;
-        in vec3 _texcoord; // haven't set up textures yet
+        in vec2 _texcoord; // haven't set up textures yet
         out vec3 vPosition;
         out vec3 vNormal;
         uniform mat4 model;
